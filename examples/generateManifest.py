@@ -1,8 +1,7 @@
-import json
 import argparse
-import subprocess
+import json
 import os
-
+import subprocess
 
 DEFAULT_LOCATION = "westus"
 BASE_CONFIG_FILE = "example-aci-connector.yaml"
@@ -11,10 +10,13 @@ def main():
     """ Auto generate the yml file with the needed credentials"""
 
     parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
         description='''Automatically generate the connector yaml file with the needed credentials. Either create a resource 
         REQUIREMENTS:
         1) Azure CLI is installed
-        2) The desired subscription Id is set as current in the CLI or is provided with the -s flag''')
+        2) The desired subscription Id is set as current in the CLI or is provided with the -s flag''',
+        epilog='''Example:
+        python generateManifest.py --create-group --resource-group myResourceGroup --helm''')
     
     parser.add_argument(
         "-cr",
@@ -22,6 +24,7 @@ def main():
         action='store_true',
         help="Creates a resource group. Must provide resource group name with (-g) and location (-l)"
     )
+    parser.add_argument("--helm", help="Output Helm installation all command", type=bool, const=True, nargs='?')
     parser.add_argument("-g", "--resource-group", help="Name of resource group", required=True)
     parser.add_argument("-s", "--subscription-id", help="Subscription ID")
     parser.add_argument("-l", "--location", help="Resource Location")
@@ -87,18 +90,24 @@ def main():
         print("Unable to create a service principal")
         exit(-1)
 
-    with open('example-aci-connector.yaml', 'r') as file:
-        filedata = file.read()
+    if (args.helm):
+        print("Run the following command to install the ACI connector:")
+        print("-----Begin Command----")
+        print("helm install --name my-release --set env.azureClientId=%s,env.azureClientKey=%s,env.azureTenantId=%s,env.azureSubscriptionId=%s,env.aciResourceGroup=%s,env.aciRegion=%s ../charts/aci-connector" % (app_info['appId'], app_info['password'], app_info['tenant'], subscription_id, resource_group, location))
+        print("-----End Command----")
+    else:
+        with open('example-aci-connector.yaml', 'r') as file:
+            filedata = file.read()
 
-    for key, value in replacements.items():
-        filedata = filedata.replace(key, value)
+        for key, value in replacements.items():
+            filedata = filedata.replace(key, value)
 
-    filename = args.file
-    if (filename == None):
-        filename = "aci-connector.yaml"
+        filename = args.file
+        if (filename == None):
+            filename = "aci-connector.yaml"
 
-    with open(filename, 'w') as file:
-        file.write(filedata)
+        with open(filename, 'w') as file:
+            file.write(filedata)
 
 if __name__ == '__main__':
     main()
